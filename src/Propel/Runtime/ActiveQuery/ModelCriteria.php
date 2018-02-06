@@ -93,9 +93,9 @@ class ModelCriteria extends BaseModelCriteria
      *
      * @return ModelCriteria The current object, for fluid interface
      */
-    public function condition($conditionName, $clause, $value = null, $bindingType = null)
+    public function condition($conditionName, $clause, $value = null, $bindingType = null, $forceAliases = false)
     {
-        $this->addCond($conditionName, $this->getCriterionForClause($clause, $value, $bindingType), null, $bindingType);
+        $this->addCond($conditionName, $this->getCriterionForClause($clause, $value, $bindingType, $forceAliases), null, $bindingType);
 
         return $this;
     }
@@ -167,14 +167,14 @@ class ModelCriteria extends BaseModelCriteria
      *
      * @return ModelCriteria The current object, for fluid interface
      */
-    public function where($clause, $value = null, $bindingType = null)
+    public function where($clause, $value = null, $bindingType = null, $forceAliases = false)
     {
         if (is_array($clause)) {
             // where(array('cond1', 'cond2'), Criteria::LOGICAL_OR)
             $criterion = $this->getCriterionForConditions($clause, $value);
         } else {
             // where('Book.AuthorId = ?', 12)
-            $criterion = $this->getCriterionForClause($clause, $value, $bindingType);
+            $criterion = $this->getCriterionForClause($clause, $value, $bindingType, $forceAliases);
         }
 
         $this->addUsingOperator($criterion, null, null);
@@ -202,14 +202,14 @@ class ModelCriteria extends BaseModelCriteria
      *
      * @return ModelCriteria The current object, for fluid interface
      */
-    public function having($clause, $value = null, $bindingType = null)
+    public function having($clause, $value = null, $bindingType = null, $forceAliases = false)
     {
         if (is_array($clause)) {
             // having(array('cond1', 'cond2'), Criteria::LOGICAL_OR)
             $criterion = $this->getCriterionForConditions($clause, $value);
         } else {
             // having('Book.AuthorId = ?', 12)
-            $criterion = $this->getCriterionForClause($clause, $value, $bindingType);
+            $criterion = $this->getCriterionForClause($clause, $value, $bindingType, $forceAliases);
         }
 
         $this->addHaving($criterion);
@@ -533,7 +533,7 @@ class ModelCriteria extends BaseModelCriteria
         if (!$join->getJoinCondition() instanceof AbstractCriterion) {
             $join->buildJoinCondition($this);
         }
-        $criterion = $this->getCriterionForClause($clause, $value, $bindingType);
+        $criterion = $this->getCriterionForClause($clause, $value, $bindingType, $join->hasRelationAlias());
         $method = Criteria::LOGICAL_OR === $operator ? 'addOr' : 'addAnd';
         $join->getJoinCondition()->$method($criterion);
 
@@ -1564,14 +1564,19 @@ class ModelCriteria extends BaseModelCriteria
      *
      * @return AbstractCriterion a Criterion object
      */
-    protected function getCriterionForClause($clause, $value, $bindingType = null)
+    protected function getCriterionForClause($clause, $value, $bindingType = null, $forceAliases = false)
     {
         $clause = trim($clause);
-        if ($this->replaceNames($clause)) {
-            // at least one column name was found and replaced in the clause
-            // this is enough to determine the type to bind the parameter to
-            $colMap = $this->replacedColumns[0];
-            $value = $this->convertValueForColumn($value, $colMap);
+        if ($forceAliases || $this->replaceNames($clause)) {
+            if ($forceAliases) {
+                list($colMap) = $this->getColumnFromName($clause);
+            } else {
+                // at least one column name was found and replaced in the clause
+                // this is enough to determine the type to bind the parameter to
+                $colMap = $this->replacedColumns[0];
+                $value = $this->convertValueForColumn($value, $colMap);
+            }
+
             $clauseLen = strlen($clause);
             if (null !== $bindingType) {
                 return new RawModelCriterion($this, $clause, $colMap, $value, $this->currentAlias, $bindingType);
