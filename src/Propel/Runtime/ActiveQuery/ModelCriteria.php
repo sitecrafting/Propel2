@@ -533,7 +533,7 @@ class ModelCriteria extends BaseModelCriteria
         if (!$join->getJoinCondition() instanceof AbstractCriterion) {
             $join->buildJoinCondition($this);
         }
-        $criterion = $this->getCriterionForClause($clause, $value, $bindingType, $join->hasRelationAlias());
+        $criterion = $this->getCriterionForClause($clause, $value, $bindingType, $join->hasRightTableAlias());
         $method = Criteria::LOGICAL_OR === $operator ? 'addOr' : 'addAnd';
         $join->getJoinCondition()->$method($criterion);
 
